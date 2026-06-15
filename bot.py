@@ -64,8 +64,7 @@ OFFICIAL_SOURCES = {
     "RTX": "https://www.rtx.com/",
     "General Dynamics": "https://www.gd.com/",
     "Airbus Defence": "https://www.airbus.com/en/products-services/defence",
-    "Европейское оборонное агентство": "https://eda.europa.eu/"
-    "FMV (Швеция)": "https://www.fmv.se/",
+    "Европейское оборонное агентство": "https://eda.europa.eu/",
     "Минобороны Азербайджана": "https://mod.gov.az/",
     "DOT&E": "https://www.dote.osd.mil/",
     "US STRATCOM": "https://www.stratcom.mil/",
