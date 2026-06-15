@@ -2,7 +2,6 @@ import os
 import requests
 import feedparser
 import json
-import re
 from datetime import datetime, timedelta
 from urllib.parse import quote
 
@@ -13,44 +12,67 @@ STATE_FILE = "state.json"
 
 
 # =========================
-# RSS SOURCES (оставил MAX OSINT)
+# RSS SOURCES (DEFENCE OSINT)
 # =========================
 RSS_FEEDS = [
     "https://feeds.bbci.co.uk/news/world/rss.xml",
-    "https://www.reuters.com/world/rss",
-    "https://apnews.com/hub/ap-top-news/rss",
+    "https://rss.nytimes.com/services/xml/rss/nyt/World.xml",
     "https://www.aljazeera.com/xml/rss/all.xml",
-
     "https://www.defensenews.com/arc/outboundfeeds/rss/",
     "https://breakingdefense.com/feed/",
     "https://www.navalnews.com/feed/",
     "https://www.armyrecognition.com/rss/news",
     "https://www.airforce-technology.com/feed/",
-
-    "https://kyivindependent.com/feed/",
     "https://www.japantimes.co.jp/feed/",
     "https://en.yna.co.kr/RSS/news.xml",
-    "http://www.xinhuanet.com/english/rss/worldrss.xml",
-    "https://indianexpress.com/section/world/feed/",
 ]
 
 
 # =========================
-# ЖЁСТКИЙ ФИЛЬТР ВОЕННЫХ ТЕМ
+# OFFICIAL SOURCES DIRECTORY
+# =========================
+OFFICIAL_SOURCES = {
+    "НАТО": "https://www.nato.int/",
+    "Минобороны США": "https://www.defense.gov/",
+    "Армия США": "https://www.army.mil/",
+    "ВМС США": "https://www.navy.mil/",
+    "Корпус морской пехоты США": "https://www.marines.mil/",
+    "DARPA": "https://www.darpa.mil/",
+    "AFRL": "https://www.afresearchlab.com/",
+    "Rheinmetall": "https://www.rheinmetall.com/",
+    "BAE Systems": "https://www.baesystems.com/",
+    "Leonardo": "https://www.leonardo.com/",
+    "Saab": "https://www.saab.com/",
+    "Thales": "https://www.thalesgroup.com/",
+    "Patria": "https://www.patria.fi/",
+    "KNDS": "https://www.knds.com/",
+    "Lockheed Martin": "https://www.lockheedmartin.com/",
+    "Northrop Grumman": "https://www.northropgrumman.com/",
+    "RTX": "https://www.rtx.com/",
+    "General Dynamics": "https://www.gd.com/",
+    "Airbus Defence": "https://www.airbus.com/en/products-services/defence",
+    "Европейское оборонное агентство": "https://eda.europa.eu/"
+}
+
+
+# =========================
+# FILTERS (MILITARY OSINT ONLY)
 # =========================
 ALLOW = [
-    "war", "military", "army", "navy", "air force",
-    "weapon", "tank", "jet", "missile", "drone",
-    "defense", "defence", "exercise", "drill",
-    "contract", "deal", "agreement", "arms",
-    "bomber", "fighter", "submarine", "fleet"
+    "military", "army", "navy", "air force",
+    "tank", "jet", "fighter", "bomber",
+    "missile", "drone", "submarine",
+    "defense", "defence", "weapon",
+    "contract", "deal", "agreement",
+    "exercise", "drill", "deployment"
 ]
 
 BLOCK = [
-    "actor", "singer", "music", "celebrity",
-    "crash", "accident", "helicopter crash",
+    "celebrity", "actor", "singer", "music",
+    "crash", "helicopter crash",
     "football", "sport", "game",
-    "opinion", "analysis", "think", "commentary"
+    "opinion", "analysis", "commentary",
+    "think tank"
 ]
 
 
@@ -71,7 +93,7 @@ def save_state(state):
 
 
 # =========================
-# TRANSLATE (FREE)
+# TRANSLATION (FREE API)
 # =========================
 def translate(text):
     try:
@@ -83,14 +105,14 @@ def translate(text):
 
 
 # =========================
-# CLEAN
+# CLEAN TEXT
 # =========================
 def clean(text):
-    return re.sub(r"\s+", " ", text).strip()[:220]
+    return " ".join(text.split())[:240]
 
 
 # =========================
-# TIME FILTER (24H)
+# TIME FILTER (24h)
 # =========================
 def is_recent(entry):
     try:
@@ -102,63 +124,102 @@ def is_recent(entry):
 
 
 # =========================
-# COUNTRY MAP
+# COUNTRY DETECTION
 # =========================
-def country(text):
+def detect_country(text):
     t = text.lower()
 
-    m = {
-        "США": ["us", "usa", "pentagon"],
+    mapping = {
+        "США": ["usa", "us ", "pentagon"],
         "Украина": ["ukraine", "kyiv"],
         "Россия": ["russia"],
-        "Франция": ["france"],
-        "Германия": ["germany"],
         "Китай": ["china"],
         "Япония": ["japan"],
         "Корея": ["korea"],
         "Индия": ["india"],
         "Иран": ["iran"],
+        "Франция": ["france"],
+        "Германия": ["germany"],
     }
 
-    for k, v in m.items():
+    for k, v in mapping.items():
         if any(x in t for x in v):
             return k
+
     return "Мир"
 
 
 # =========================
-# SEND
+# OFFICIAL LINK MATCH
 # =========================
-def send(text):
+def get_official(text):
+    t = text.lower()
+
+    mapping = {
+        "НАТО": ["nato"],
+        "Минобороны США": ["pentagon", "us defense"],
+        "Армия США": ["army"],
+        "ВМС США": ["navy"],
+        "Корпус морской пехоты США": ["marine"],
+        "DARPA": ["darpa"],
+        "AFRL": ["air force research"],
+
+        "Rheinmetall": ["rheinmetall"],
+        "BAE Systems": ["bae"],
+        "Leonardo": ["leonardo"],
+        "Saab": ["saab"],
+        "Thales": ["thales"],
+        "Patria": ["patria"],
+        "KNDS": ["knds"],
+
+        "Lockheed Martin": ["lockheed"],
+        "Northrop Grumman": ["northrop"],
+        "RTX": ["rtx"],
+        "General Dynamics": ["general dynamics"],
+        "Airbus Defence": ["airbus"],
+
+        "Европейское оборонное агентство": ["eda"]
+    }
+
+    for k, keywords in mapping.items():
+        if any(w in t for w in keywords):
+            return k, OFFICIAL_SOURCES.get(k)
+
+    return None, None
+
+
+# =========================
+# SEND TELEGRAM
+# =========================
+def send(msg):
     url = f"https://api.telegram.org/bot{TOKEN}/sendMessage"
-    requests.post(url, data={"chat_id": CHAT_ID, "text": text})
+    requests.post(url, data={"chat_id": CHAT_ID, "text": msg})
 
 
 # =========================
-# NEWS
+# FETCH NEWS
 # =========================
 def get_news():
-    out = []
+    items = []
 
     for url in RSS_FEEDS:
         try:
             feed = feedparser.parse(url)
 
             for e in feed.entries[:5]:
+
                 if not is_recent(e):
                     continue
 
                 title = e.title.lower()
 
-                # ❌ блок мусора
                 if any(b in title for b in BLOCK):
                     continue
 
-                # ❌ только военка
                 if not any(a in title for a in ALLOW):
                     continue
 
-                out.append({
+                items.append({
                     "title": e.title,
                     "link": e.link
                 })
@@ -166,7 +227,7 @@ def get_news():
         except:
             continue
 
-    return out
+    return items
 
 
 # =========================
@@ -183,17 +244,24 @@ def main():
         if n["link"] in seen:
             continue
 
-        c = country(n["title"])
+        country = detect_country(n["title"])
+
         title_ru = translate(n["title"])
         title_ru = clean(title_ru)
 
-        message = f"""{c}
+        org, link = get_official(title_ru)
+
+        extra = ""
+        if link:
+            extra = f"\n🏛 Официальный источник: {link}"
+
+        msg = f"""{country}
 
 📰 {title_ru}
 
-🔗 {n['link']}"""
+🔗 {n['link']}{extra}"""
 
-        send(message)
+        send(msg)
 
         print("SENT:", title_ru)
 
