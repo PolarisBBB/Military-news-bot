@@ -15,17 +15,30 @@ STATE_FILE = "state.json"
 # RSS SOURCES (DEFENCE OSINT)
 # =========================
 RSS_FEEDS = [
+
+    # Мировые СМИ
     "https://feeds.bbci.co.uk/news/world/rss.xml",
     "https://rss.nytimes.com/services/xml/rss/nyt/World.xml",
     "https://www.aljazeera.com/xml/rss/all.xml",
+
+    # Военные СМИ
     "https://www.defensenews.com/arc/outboundfeeds/rss/",
     "https://breakingdefense.com/feed/",
     "https://www.navalnews.com/feed/",
     "https://www.armyrecognition.com/rss/news",
     "https://www.airforce-technology.com/feed/",
+    "https://www.navalnews.com/feed/",
+
+    # Новые источники
+    "https://www.thedefensenews.com/feed/",
+    "https://www.fmv.se/rss.xml",
+
+    # Азия
     "https://www.japantimes.co.jp/feed/",
     "https://en.yna.co.kr/RSS/news.xml",
+
 ]
+
 
 
 # =========================
@@ -52,6 +65,10 @@ OFFICIAL_SOURCES = {
     "General Dynamics": "https://www.gd.com/",
     "Airbus Defence": "https://www.airbus.com/en/products-services/defence",
     "Европейское оборонное агентство": "https://eda.europa.eu/"
+    "FMV (Швеция)": "https://www.fmv.se/",
+    "Минобороны Азербайджана": "https://mod.gov.az/",
+    "DOT&E": "https://www.dote.osd.mil/",
+    "US STRATCOM": "https://www.stratcom.mil/",
 }
 
 
@@ -68,11 +85,36 @@ ALLOW = [
 ]
 
 BLOCK = [
-    "celebrity", "actor", "singer", "music",
-    "crash", "helicopter crash",
-    "football", "sport", "game",
-    "opinion", "analysis", "commentary",
-    "think tank"
+
+    "interview",
+    "exclusive interview",
+    "q&a",
+    "analysis",
+    "opinion",
+    "editorial",
+    "podcast",
+    "video",
+
+    "celebrity",
+    "actor",
+    "singer",
+    "music",
+    "movie",
+    "film",
+    "festival",
+    "football",
+    "soccer",
+    "basketball",
+    "baseball",
+    "tennis",
+    "olympics",
+    "entertainment",
+    "hollywood",
+    "crime",
+    "murder",
+    "weather",
+    "wildfire",
+
 ]
 
 
@@ -257,7 +299,7 @@ def main():
 
         msg = f"""{country}
 
-📰 {title_ru}
+{title_ru}
 
 🔗 {n['link']}{extra}"""
 
