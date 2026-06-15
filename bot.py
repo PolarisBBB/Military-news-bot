@@ -2,6 +2,7 @@ import os
 import requests
 import feedparser
 import json
+import re
 
 TOKEN = os.getenv("BOT_TOKEN")
 CHAT_ID = os.getenv("CHAT_ID")
@@ -15,19 +16,24 @@ RSS_FEEDS = [
     "https://feeds.skynews.com/feeds/rss/world.xml"
 ]
 
-# 🧠 интересующие темы
-KEYWORDS = [
-    "military", "war", "defense", "weapon", "tank", "fighter",
-    "aircraft", "drone", "missile", "submarine", "warship",
-    "exercise", "drill", "agreement", "deal", "summit",
-    "visit", "meeting", "crash", "killed", "accident"
+# 🎯 ключевые военные/политические темы
+KEYWORDS_HIGH = [
+    "war", "attack", "missile", "airstrike", "battle",
+    "invasion", "drone", "tank", "fighter", "submarine",
+    "warship", "nuclear", "mobilization", "defense"
+]
+
+KEYWORDS_MED = [
+    "agreement", "deal", "summit", "meeting", "visit",
+    "exercise", "drill", "contract", "delivery", "aid",
+    "sanctions", "cooperation"
 ]
 
 COUNTRIES = [
     "USA", "United States", "Ukraine", "Russia", "NATO",
-    "Japan", "South Korea", "North Korea", "China",
-    "Taiwan", "India", "Iran", "Australia", "Vietnam",
-    "Philippines", "Azerbaijan"
+    "China", "Taiwan", "Japan", "South Korea", "North Korea",
+    "India", "Iran", "Australia", "Vietnam", "Philippines",
+    "Azerbaijan"
 ]
 
 
@@ -53,13 +59,38 @@ def send_message(text):
     })
 
 
-# 🔍 фильтр интересных новостей
+# 🧠 определяем важность
+def get_priority(text):
+    t = text.lower()
+
+    if any(k in t for k in KEYWORDS_HIGH):
+        return 3  # 🔥🔥🔥
+    elif any(k in t for k in KEYWORDS_MED):
+        return 2  # 🔥🔥
+    else:
+        return 1  # 🔥
+
+
+# 🎯 фильтр интереса
 def is_interesting(text):
-    text_lower = text.lower()
-    return any(k.lower() in text_lower for k in KEYWORDS + COUNTRIES)
+    t = text.lower()
+    return any(k.lower() in t for k in KEYWORDS_HIGH + KEYWORDS_MED + COUNTRIES)
 
 
-# 📰 сбор новостей
+# ✂️ умное сокращение (как OSINT-канал)
+def smart_summary(title):
+    title = re.sub(r"\s+", " ", title).strip()
+
+    # убираем лишние хвосты
+    title = re.sub(r"\s-\s.*$", "", title)
+
+    if len(title) > 160:
+        title = title[:160] + "..."
+
+    return title
+
+
+# 📰 новости
 def get_all_news():
     news = []
 
@@ -75,15 +106,6 @@ def get_all_news():
     return news
 
 
-# ✂️ простое "резюме" без AI
-def create_summary(title):
-    # просто чистим и укорачиваем заголовок
-    if len(title) > 140:
-        title = title[:140] + "..."
-
-    return title
-
-
 def main():
     state = load_state()
     seen = state.get("seen", [])
@@ -95,14 +117,18 @@ def main():
         if item["link"] in seen:
             continue
 
-        full_text = item["title"]
+        text = item["title"]
 
-        if not is_interesting(full_text):
+        if not is_interesting(text):
             continue
 
-        summary = create_summary(full_text)
+        priority = get_priority(text)
 
-        message = f"""🔥 {summary}
+        summary = smart_summary(text)
+
+        prefix = "🔥" * priority
+
+        message = f"""{prefix} {summary}
 
 🔗 {item['link']}"""
 
@@ -111,7 +137,7 @@ def main():
 
         seen.append(item["link"])
 
-    state["seen"] = seen[-200:]
+    state["seen"] = seen[-300:]
     save_state(state)
 
 
