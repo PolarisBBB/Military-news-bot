@@ -16,19 +16,6 @@ RSS_FEEDS = [
 ]
 
 
-def load_state():
-    try:
-        with open(STATE_FILE, "r") as f:
-            return json.load(f)
-    except:
-        return {"seen": []}
-
-
-def save_state(state):
-    with open(STATE_FILE, "w") as f:
-        json.dump(state, f)
-
-
 def send_message(text):
     url = f"https://api.telegram.org/bot{TOKEN}/sendMessage"
     requests.post(url, data={
@@ -39,51 +26,25 @@ def send_message(text):
 
 
 def get_all_news():
-    all_news = []
+    news = []
 
     for url in RSS_FEEDS:
-        print("Checking:", url)
-
         feed = feedparser.parse(url)
 
-        print("Entries:", len(feed.entries))
-
         for entry in feed.entries[:3]:
-            print("TITLE:", entry.title)
-
-            all_news.append({
+            news.append({
                 "title": entry.title,
                 "link": entry.link
             })
 
-    return all_news
+    return news
 
 
 def main():
-    state = load_state()
-    seen = state.get("seen", [])
-
     news = get_all_news()
 
-    new_items = []
-
-    for item in news:
-        if item["link"] not in seen:
-            new_items.append(item)
-
-    if not new_items:
-        send_message("Нет новых новостей")
-        return
-
-    for item in new_items[:10]:
-        message = f"📰 {item['title']}\n\n{item['link']}"
-        send_message(message)
-        print("Sent:", item["title"])
-
-        seen.append(item["link"])
-
-    state["seen"] = seen[-200:]
-    save_state(state)
+    for item in news[:5]:
+        send_message(f"📰 {item['title']}\n\n{item['link']}")
 
 
 if __name__ == "__main__":
