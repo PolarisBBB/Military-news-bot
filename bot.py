@@ -2,14 +2,19 @@ import os
 import requests
 import feedparser
 import json
-from datetime import datetime
 
 TOKEN = os.getenv("BOT_TOKEN")
 CHAT_ID = os.getenv("CHAT_ID")
 
-RSS_URL = "https://rss.nytimes.com/services/xml/rss/nyt/World.xml"
-
 STATE_FILE = "state.json"
+
+# 📡 Несколько источников новостей
+RSS_FEEDS = [
+    "https://rss.nytimes.com/services/xml/rss/nyt/World.xml",
+    "https://feeds.bbci.co.uk/news/world/rss.xml",
+    "https://www.aljazeera.com/xml/rss/all.xml",
+    "https://www.reutersagency.com/feed/?best-topics=world&post_type=best"
+]
 
 
 def load_state():
@@ -17,7 +22,7 @@ def load_state():
         with open(STATE_FILE, "r") as f:
             return json.load(f)
     except:
-        return {"last_title": ""}
+        return {}
 
 
 def save_state(state):
@@ -34,34 +39,45 @@ def send_message(text):
     })
 
 
-def get_news():
-    feed = feedparser.parse(RSS_URL)
-    return feed.entries[:5]
+def get_all_news():
+    all_news = []
+
+    for url in RSS_FEEDS:
+        feed = feedparser.parse(url)
+
+        for entry in feed.entries[:5]:
+            all_news.append({
+                "title": entry.title,
+                "link": entry.link
+            })
+
+    return all_news
 
 
 def main():
     state = load_state()
-    last_title = state.get("last_title", "")
+    seen = state.get("seen", [])
 
-    news = get_news()
+    news = get_all_news()
 
     new_items = []
 
     for item in news:
-        if item.title == last_title:
-            break
-        new_items.append(item)
+        if item["link"] not in seen:
+            new_items.append(item)
 
     if not new_items:
         print("No new news")
         return
 
-    for item in reversed(new_items):
-        message = f"📰 {item.title}\n\n{item.link}"
+    for item in new_items[:10]:
+        message = f"📰 {item['title']}\n\n{item['link']}"
         send_message(message)
-        print("Sent:", item.title)
+        print("Sent:", item["title"])
 
-    state["last_title"] = news[0].title
+        seen.append(item["link"])
+
+    state["seen"] = seen[-200:]  # ограничим память
     save_state(state)
 
 
