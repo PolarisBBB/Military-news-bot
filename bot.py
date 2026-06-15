@@ -28,6 +28,16 @@ RSS_FEEDS = [
     "https://www.armyrecognition.com/rss/news",
     "https://www.airforce-technology.com/feed/",
     "https://www.navalnews.com/feed/",
+    "https://www.nato.int/",
+    "https://www.defense.gov/",
+    "https://www.army.mil/",
+    "https://www.navy.mil/",
+    "https://www.marines.mil/",
+    "https://www.darpa.mil/",
+    "https://www.afresearchlab.com/",
+    "https://www.dote.osd.mil/",
+    "https://www.stratcom.mil/",
+    "https://eda.europa.eu/",
 
     # Новые источники
     "https://www.thedefensenews.com/feed/",
@@ -36,6 +46,27 @@ RSS_FEEDS = [
     # Азия
     "https://www.japantimes.co.jp/feed/",
     "https://en.yna.co.kr/RSS/news.xml",
+
+    # Министерства обороны
+    "https://www.gov.uk/government/organisations/ministry-of-defence",
+    "https://www.defense.gouv.fr/",
+    "https://www.bmvg.de/",
+    "https://www.gov.pl/web/obrona-narodowa",
+    "https://www.defmin.fi/",
+    "https://www.regeringen.se/sveriges-regering/forsvarsdepartementet/",
+    "https://www.regjeringen.no/en/dep/fd/",
+    "https://www.difesa.it/",
+    "https://www.defensa.gob.es/",
+    "https://english.defensie.nl/",
+    "https://www.fmn.dk/",
+    "https://mod.gov.az/",
+    "https://www.mod.go.jp/en/",
+    "https://www.mnd.go.kr/mbshome/mbs/mndEN/",
+    "https://www.defence.gov.au/",
+    "https://mod.gov.in/",
+    "https://www.mnd.gov.tw/english/",
+    "https://www.dnd.gov.ph/",
+    "https://www.mil.gov.ua/",
 
 ]
 
@@ -65,7 +96,6 @@ OFFICIAL_SOURCES = {
     "General Dynamics": "https://www.gd.com/",
     "Airbus Defence": "https://www.airbus.com/en/products-services/defence",
     "Европейское оборонное агентство": "https://eda.europa.eu/",
-    "Минобороны Азербайджана": "https://mod.gov.az/",
     "DOT&E": "https://www.dote.osd.mil/",
     "US STRATCOM": "https://www.stratcom.mil/",
 }
