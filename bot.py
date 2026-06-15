@@ -1,3 +1,4 @@
+print("🚨 NEW VERSION RUNNING")
 print("🚨 THIS IS NEW BOT FILE")
 import os
 import requests
