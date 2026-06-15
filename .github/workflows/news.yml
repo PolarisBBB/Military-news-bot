@@ -2,7 +2,7 @@ name: news-bot
 
 on:
   schedule:
-    - cron: "*/30 * * * *"   # каждые 30 минут
+    - cron: "*/30 * * * *"
   workflow_dispatch:
 
 jobs:
@@ -18,7 +18,7 @@ jobs:
 
       - run: pip install -r requirements.txt
 
-      - run: python bot.py
+      - run: python -u bot.py
         env:
           BOT_TOKEN: ${{ secrets.BOT_TOKEN }}
           CHAT_ID: ${{ secrets.CHAT_ID }}
