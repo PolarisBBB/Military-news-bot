@@ -3,6 +3,8 @@ import requests
 import feedparser
 import json
 import re
+from datetime import datetime, timedelta
+from urllib.parse import quote
 
 TOKEN = os.getenv("BOT_TOKEN")
 CHAT_ID = os.getenv("CHAT_ID")
@@ -11,25 +13,24 @@ STATE_FILE = "state.json"
 
 
 # =========================
-# 🌍 FULL OSINT SOURCE MATRIX (TVD STYLE)
+# 🌍 MAX OSINT SOURCE MATRIX
 # =========================
 RSS_FEEDS = [
 
-    # GLOBAL WIRE SERVICES
+    # GLOBAL WIRE
     "https://feeds.bbci.co.uk/news/world/rss.xml",
     "https://www.reuters.com/world/rss",
     "https://apnews.com/hub/ap-top-news/rss",
     "https://www.aljazeera.com/xml/rss/all.xml",
-
-    # EUROPE / NATO CORE
     "https://www.france24.com/en/rss",
     "https://www.dw.com/en/top-stories/s-9097",
     "https://www.euronews.com/rss?level=theme&name=news",
 
-    # USA DEFENCE / POLICY
+    # USA / NATO DEFENCE
     "https://www.defensenews.com/arc/outboundfeeds/rss/",
     "https://breakingdefense.com/feed/",
     "https://www.politico.com/rss/politicopicks.xml",
+    "https://www.npr.org/rss/rss.php?id=1004",
 
     # UK
     "https://news.sky.com/feeds/rss/world.xml",
@@ -39,12 +40,12 @@ RSS_FEEDS = [
     "https://www.ukrinform.net/rss/block-lastnews",
     "https://kyivindependent.com/feed/",
 
-    # ASIA PACIFIC
+    # ASIA
     "https://www3.nhk.or.jp/nhkworld/en/news/rss/",
     "https://en.yna.co.kr/RSS/news.xml",
     "https://www.japantimes.co.jp/feed/",
 
-    # CHINA / STATE MEDIA
+    # CHINA
     "http://www.xinhuanet.com/english/rss/worldrss.xml",
     "https://www.globaltimes.cn/rss/outbrain.xml",
 
@@ -61,49 +62,77 @@ RSS_FEEDS = [
     # PHILIPPINES
     "https://www.pna.gov.ph/rss/news.xml",
 
-    # DEFENCE / OSINT SPECIALIZED
+    # DEFENCE OSINT
     "https://www.navalnews.com/feed/",
     "https://www.airforce-technology.com/feed/",
     "https://www.armyrecognition.com/rss/news",
-    "https://www.janes.com/feeds/rss",  # (may be partial access depending region)
 
-    # ADDITIONAL STRATEGIC OSINT
-    "https://www.atlanticcouncil.org/feed/",
+    # ANALYTICS / THINK TANKS
     "https://www.csis.org/rss.xml",
+    "https://www.atlanticcouncil.org/feed/",
+
+    # EXTRA OSINT (loss tracking / military analysis)
+    "https://www.oryxspioenkop.com/feeds/posts/default?alt=rss"
 ]
 
 
 # =========================
-# CLASSIFICATION ENGINE
+# FILTER LOGIC (NEWS ONLY)
 # =========================
-CRITICAL = [
-    "war", "attack", "strike", "missile", "drone",
-    "invasion", "battle", "crash", "killed"
-]
-
-HIGH = [
-    "contract", "deal", "agreement", "delivery",
-    "tank", "jet", "fighter", "submarine", "ship",
-    "exercise", "drill", "summit"
-]
-
-MED = [
-    "visit", "meeting", "talks", "cooperation"
-]
+CRITICAL = ["war", "attack", "strike", "missile", "drone", "crash", "killed"]
+HIGH = ["contract", "deal", "agreement", "delivery", "tank", "jet", "submarine", "ship", "exercise"]
+MED = ["meeting", "visit", "talks", "summit"]
 
 
 # =========================
-# REGION DETECTION (TVD STYLE)
+# COUNTRY DETECTION
 # =========================
-REGIONS = {
-    "NATO/EUROPE": ["nato", "europe", "germany", "france", "poland", "uk"],
-    "UKRAINE FRONT": ["ukraine", "kyiv", "russia"],
-    "ASIA-PACIFIC": ["china", "japan", "korea", "taiwan", "philippines", "india"],
-    "MIDDLE EAST": ["iran", "israel", "syria", "iraq"],
-    "GLOBAL": []
-}
+def get_country(text):
+    t = text.lower()
+
+    map_ = {
+        "США": ["us", "usa", "pentagon", "america"],
+        "Украина": ["ukraine", "kyiv"],
+        "Россия": ["russia", "moscow"],
+        "Франция": ["france"],
+        "Германия": ["germany"],
+        "Китай": ["china"],
+        "Япония": ["japan"],
+        "Южная Корея": ["korea"],
+        "Индия": ["india"],
+        "Иран": ["iran"],
+    }
+
+    for k, v in map_.items():
+        if any(x in t for x in v):
+            return k
+
+    return "Мир"
 
 
+# =========================
+# TIME FILTER (24 HOURS ONLY)
+# =========================
+def is_recent(entry):
+    try:
+        published = entry.published_parsed
+        pub_time = datetime(*published[:6])
+        return datetime.utcnow() - pub_time < timedelta(hours=24)
+    except:
+        return True
+
+
+# =========================
+# CLEAN TEXT
+# =========================
+def clean(text):
+    text = re.sub(r"\s+", " ", text)
+    return text.strip()[:220]
+
+
+# =========================
+# STATE
+# =========================
 def load_state():
     try:
         with open(STATE_FILE, "r") as f:
@@ -117,6 +146,9 @@ def save_state(state):
         json.dump(state, f)
 
 
+# =========================
+# SEND
+# =========================
 def send_message(text):
     url = f"https://api.telegram.org/bot{TOKEN}/sendMessage"
     requests.post(url, data={
@@ -127,34 +159,7 @@ def send_message(text):
 
 
 # =========================
-# ANALYTICS LAYER (TVD CORE)
-# =========================
-def get_region(text):
-    t = text.lower()
-    for region, keys in REGIONS.items():
-        if any(k in t for k in keys):
-            return region
-    return "GLOBAL"
-
-
-def get_level(text):
-    t = text.lower()
-    if any(k in t for k in CRITICAL):
-        return "CRITICAL"
-    if any(k in t for k in HIGH):
-        return "HIGH"
-    if any(k in t for k in MED):
-        return "MEDIUM"
-    return "LOW"
-
-
-def clean(text):
-    text = re.sub(r"\s+", " ", text)
-    return text[:180]
-
-
-# =========================
-# NEWS AGGREGATION
+# NEWS FETCH
 # =========================
 def get_news():
     items = []
@@ -164,6 +169,9 @@ def get_news():
             feed = feedparser.parse(url)
 
             for e in feed.entries[:5]:
+                if not is_recent(e):
+                    continue
+
                 items.append({
                     "title": e.title,
                     "link": e.link
@@ -176,7 +184,7 @@ def get_news():
 
 
 # =========================
-# MAIN ENGINE
+# MAIN
 # =========================
 def main():
     state = load_state()
@@ -189,36 +197,28 @@ def main():
         if item["link"] in seen:
             continue
 
-        title = item["title"]
+        country = get_country(item["title"])
 
-        region = get_region(title)
-        level = get_level(title)
+        title = clean(item["title"])
 
         # фильтр мусора
-        if level == "LOW":
+        low = title.lower()
+        if not any(k in low for k in CRITICAL + HIGH + MED):
             continue
 
-        summary = clean(title)
+        message = f"""{country}
 
-        emoji = {
-            "CRITICAL": "🔴",
-            "HIGH": "🟠",
-            "MEDIUM": "🟡"
-        }.get(level, "⚪")
-
-        message = f"""📡 TVD OSINT REPORT [{region}] [{level}]
-
-{emoji} {summary}
+📰 {title}
 
 🔗 {item['link']}"""
 
         send_message(message)
 
-        print("SENT:", summary)
+        print("SENT:", title)
 
         seen.append(item["link"])
 
-    state["seen"] = seen[-500:]
+    state["seen"] = seen[-600:]
     save_state(state)
 
 
