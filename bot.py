@@ -13,121 +13,45 @@ STATE_FILE = "state.json"
 
 
 # =========================
-# 🌍 MAX OSINT SOURCE MATRIX
+# RSS SOURCES (оставил MAX OSINT)
 # =========================
 RSS_FEEDS = [
-
-    # GLOBAL WIRE
     "https://feeds.bbci.co.uk/news/world/rss.xml",
     "https://www.reuters.com/world/rss",
     "https://apnews.com/hub/ap-top-news/rss",
     "https://www.aljazeera.com/xml/rss/all.xml",
-    "https://www.france24.com/en/rss",
-    "https://www.dw.com/en/top-stories/s-9097",
-    "https://www.euronews.com/rss?level=theme&name=news",
 
-    # USA / NATO DEFENCE
     "https://www.defensenews.com/arc/outboundfeeds/rss/",
     "https://breakingdefense.com/feed/",
-    "https://www.politico.com/rss/politicopicks.xml",
-    "https://www.npr.org/rss/rss.php?id=1004",
-
-    # UK
-    "https://news.sky.com/feeds/rss/world.xml",
-    "https://www.telegraph.co.uk/news/rss.xml",
-
-    # UKRAINE / WAR ZONE
-    "https://www.ukrinform.net/rss/block-lastnews",
-    "https://kyivindependent.com/feed/",
-
-    # ASIA
-    "https://www3.nhk.or.jp/nhkworld/en/news/rss/",
-    "https://en.yna.co.kr/RSS/news.xml",
-    "https://www.japantimes.co.jp/feed/",
-
-    # CHINA
-    "http://www.xinhuanet.com/english/rss/worldrss.xml",
-    "https://www.globaltimes.cn/rss/outbrain.xml",
-
-    # INDIA
-    "https://indianexpress.com/section/world/feed/",
-    "https://www.thehindu.com/news/international/?service=rss",
-
-    # IRAN
-    "https://en.irna.ir/rss",
-
-    # AUSTRALIA
-    "https://www.abc.net.au/news/feed/46182/rss.xml",
-
-    # PHILIPPINES
-    "https://www.pna.gov.ph/rss/news.xml",
-
-    # DEFENCE OSINT
     "https://www.navalnews.com/feed/",
-    "https://www.airforce-technology.com/feed/",
     "https://www.armyrecognition.com/rss/news",
+    "https://www.airforce-technology.com/feed/",
 
-    # ANALYTICS / THINK TANKS
-    "https://www.csis.org/rss.xml",
-    "https://www.atlanticcouncil.org/feed/",
-
-    # EXTRA OSINT (loss tracking / military analysis)
-    "https://www.oryxspioenkop.com/feeds/posts/default?alt=rss"
+    "https://kyivindependent.com/feed/",
+    "https://www.japantimes.co.jp/feed/",
+    "https://en.yna.co.kr/RSS/news.xml",
+    "http://www.xinhuanet.com/english/rss/worldrss.xml",
+    "https://indianexpress.com/section/world/feed/",
 ]
 
 
 # =========================
-# FILTER LOGIC (NEWS ONLY)
+# ЖЁСТКИЙ ФИЛЬТР ВОЕННЫХ ТЕМ
 # =========================
-CRITICAL = ["war", "attack", "strike", "missile", "drone", "crash", "killed"]
-HIGH = ["contract", "deal", "agreement", "delivery", "tank", "jet", "submarine", "ship", "exercise"]
-MED = ["meeting", "visit", "talks", "summit"]
+ALLOW = [
+    "war", "military", "army", "navy", "air force",
+    "weapon", "tank", "jet", "missile", "drone",
+    "defense", "defence", "exercise", "drill",
+    "contract", "deal", "agreement", "arms",
+    "bomber", "fighter", "submarine", "fleet"
+]
 
-
-# =========================
-# COUNTRY DETECTION
-# =========================
-def get_country(text):
-    t = text.lower()
-
-    map_ = {
-        "США": ["us", "usa", "pentagon", "america"],
-        "Украина": ["ukraine", "kyiv"],
-        "Россия": ["russia", "moscow"],
-        "Франция": ["france"],
-        "Германия": ["germany"],
-        "Китай": ["china"],
-        "Япония": ["japan"],
-        "Южная Корея": ["korea"],
-        "Индия": ["india"],
-        "Иран": ["iran"],
-    }
-
-    for k, v in map_.items():
-        if any(x in t for x in v):
-            return k
-
-    return "Мир"
-
-
-# =========================
-# TIME FILTER (24 HOURS ONLY)
-# =========================
-def is_recent(entry):
-    try:
-        published = entry.published_parsed
-        pub_time = datetime(*published[:6])
-        return datetime.utcnow() - pub_time < timedelta(hours=24)
-    except:
-        return True
-
-
-# =========================
-# CLEAN TEXT
-# =========================
-def clean(text):
-    text = re.sub(r"\s+", " ", text)
-    return text.strip()[:220]
+BLOCK = [
+    "actor", "singer", "music", "celebrity",
+    "crash", "accident", "helicopter crash",
+    "football", "sport", "game",
+    "opinion", "analysis", "think", "commentary"
+]
 
 
 # =========================
@@ -147,22 +71,74 @@ def save_state(state):
 
 
 # =========================
+# TRANSLATE (FREE)
+# =========================
+def translate(text):
+    try:
+        url = f"https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=ru&dt=t&q={quote(text)}"
+        r = requests.get(url)
+        return r.json()[0][0][0]
+    except:
+        return text
+
+
+# =========================
+# CLEAN
+# =========================
+def clean(text):
+    return re.sub(r"\s+", " ", text).strip()[:220]
+
+
+# =========================
+# TIME FILTER (24H)
+# =========================
+def is_recent(entry):
+    try:
+        t = entry.published_parsed
+        dt = datetime(*t[:6])
+        return datetime.utcnow() - dt < timedelta(hours=24)
+    except:
+        return True
+
+
+# =========================
+# COUNTRY MAP
+# =========================
+def country(text):
+    t = text.lower()
+
+    m = {
+        "США": ["us", "usa", "pentagon"],
+        "Украина": ["ukraine", "kyiv"],
+        "Россия": ["russia"],
+        "Франция": ["france"],
+        "Германия": ["germany"],
+        "Китай": ["china"],
+        "Япония": ["japan"],
+        "Корея": ["korea"],
+        "Индия": ["india"],
+        "Иран": ["iran"],
+    }
+
+    for k, v in m.items():
+        if any(x in t for x in v):
+            return k
+    return "Мир"
+
+
+# =========================
 # SEND
 # =========================
-def send_message(text):
+def send(text):
     url = f"https://api.telegram.org/bot{TOKEN}/sendMessage"
-    requests.post(url, data={
-        "chat_id": CHAT_ID,
-        "text": text,
-        "disable_web_page_preview": True
-    })
+    requests.post(url, data={"chat_id": CHAT_ID, "text": text})
 
 
 # =========================
-# NEWS FETCH
+# NEWS
 # =========================
 def get_news():
-    items = []
+    out = []
 
     for url in RSS_FEEDS:
         try:
@@ -172,7 +148,17 @@ def get_news():
                 if not is_recent(e):
                     continue
 
-                items.append({
+                title = e.title.lower()
+
+                # ❌ блок мусора
+                if any(b in title for b in BLOCK):
+                    continue
+
+                # ❌ только военка
+                if not any(a in title for a in ALLOW):
+                    continue
+
+                out.append({
                     "title": e.title,
                     "link": e.link
                 })
@@ -180,7 +166,7 @@ def get_news():
         except:
             continue
 
-    return items
+    return out
 
 
 # =========================
@@ -192,33 +178,28 @@ def main():
 
     news = get_news()
 
-    for item in news:
+    for n in news:
 
-        if item["link"] in seen:
+        if n["link"] in seen:
             continue
 
-        country = get_country(item["title"])
+        c = country(n["title"])
+        title_ru = translate(n["title"])
+        title_ru = clean(title_ru)
 
-        title = clean(item["title"])
+        message = f"""{c}
 
-        # фильтр мусора
-        low = title.lower()
-        if not any(k in low for k in CRITICAL + HIGH + MED):
-            continue
+📰 {title_ru}
 
-        message = f"""{country}
+🔗 {n['link']}"""
 
-📰 {title}
+        send(message)
 
-🔗 {item['link']}"""
+        print("SENT:", title_ru)
 
-        send_message(message)
+        seen.append(n["link"])
 
-        print("SENT:", title)
-
-        seen.append(item["link"])
-
-    state["seen"] = seen[-600:]
+    state["seen"] = seen[-500:]
     save_state(state)
 
 
