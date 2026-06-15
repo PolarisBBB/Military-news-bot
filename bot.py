@@ -8,13 +8,11 @@ CHAT_ID = os.getenv("CHAT_ID")
 
 STATE_FILE = "state.json"
 
-# 📡 Несколько источников новостей
 RSS_FEEDS = [
     "https://feeds.bbci.co.uk/news/world/rss.xml",
     "https://rss.nytimes.com/services/xml/rss/nyt/World.xml",
     "https://www.aljazeera.com/xml/rss/all.xml",
     "https://feeds.skynews.com/feeds/rss/world.xml"
-]
 ]
 
 
@@ -23,7 +21,7 @@ def load_state():
         with open(STATE_FILE, "r") as f:
             return json.load(f)
     except:
-        return {}
+        return {"seen": []}
 
 
 def save_state(state):
@@ -60,20 +58,10 @@ def get_all_news():
 
     return all_news
 
-    for url in RSS_FEEDS:
-        feed = feedparser.parse(url)
-
-        for entry in feed.entries[:5]:
-            all_news.append({
-                "title": entry.title,
-                "link": entry.link
-            })
-
-    return all_news
-
 
 def main():
-    seen = []
+    state = load_state()
+    seen = state.get("seen", [])
 
     news = get_all_news()
 
@@ -84,7 +72,7 @@ def main():
             new_items.append(item)
 
     if not new_items:
-        print("No new news")
+        send_message("Нет новых новостей")
         return
 
     for item in new_items[:10]:
@@ -94,7 +82,7 @@ def main():
 
         seen.append(item["link"])
 
-    state["seen"] = seen[-200:]  # ограничим память
+    state["seen"] = seen[-200:]
     save_state(state)
 
 
