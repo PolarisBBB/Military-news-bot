@@ -3,34 +3,105 @@ import requests
 import feedparser
 import json
 import re
-from datetime import datetime
 
 TOKEN = os.getenv("BOT_TOKEN")
 CHAT_ID = os.getenv("CHAT_ID")
 
 STATE_FILE = "state.json"
 
+
+# =========================
+# 🌍 FULL OSINT SOURCE MATRIX (TVD STYLE)
+# =========================
 RSS_FEEDS = [
+
+    # GLOBAL WIRE SERVICES
     "https://feeds.bbci.co.uk/news/world/rss.xml",
-    "https://rss.nytimes.com/services/xml/rss/nyt/World.xml",
+    "https://www.reuters.com/world/rss",
+    "https://apnews.com/hub/ap-top-news/rss",
     "https://www.aljazeera.com/xml/rss/all.xml",
-    "https://feeds.skynews.com/feeds/rss/world.xml"
+
+    # EUROPE / NATO CORE
+    "https://www.france24.com/en/rss",
+    "https://www.dw.com/en/top-stories/s-9097",
+    "https://www.euronews.com/rss?level=theme&name=news",
+
+    # USA DEFENCE / POLICY
+    "https://www.defensenews.com/arc/outboundfeeds/rss/",
+    "https://breakingdefense.com/feed/",
+    "https://www.politico.com/rss/politicopicks.xml",
+
+    # UK
+    "https://news.sky.com/feeds/rss/world.xml",
+    "https://www.telegraph.co.uk/news/rss.xml",
+
+    # UKRAINE / WAR ZONE
+    "https://www.ukrinform.net/rss/block-lastnews",
+    "https://kyivindependent.com/feed/",
+
+    # ASIA PACIFIC
+    "https://www3.nhk.or.jp/nhkworld/en/news/rss/",
+    "https://en.yna.co.kr/RSS/news.xml",
+    "https://www.japantimes.co.jp/feed/",
+
+    # CHINA / STATE MEDIA
+    "http://www.xinhuanet.com/english/rss/worldrss.xml",
+    "https://www.globaltimes.cn/rss/outbrain.xml",
+
+    # INDIA
+    "https://indianexpress.com/section/world/feed/",
+    "https://www.thehindu.com/news/international/?service=rss",
+
+    # IRAN
+    "https://en.irna.ir/rss",
+
+    # AUSTRALIA
+    "https://www.abc.net.au/news/feed/46182/rss.xml",
+
+    # PHILIPPINES
+    "https://www.pna.gov.ph/rss/news.xml",
+
+    # DEFENCE / OSINT SPECIALIZED
+    "https://www.navalnews.com/feed/",
+    "https://www.airforce-technology.com/feed/",
+    "https://www.armyrecognition.com/rss/news",
+    "https://www.janes.com/feeds/rss",  # (may be partial access depending region)
+
+    # ADDITIONAL STRATEGIC OSINT
+    "https://www.atlanticcouncil.org/feed/",
+    "https://www.csis.org/rss.xml",
 ]
 
-# 🌍 театры
-THEATERS = {
-    "europe": ["russia", "ukraine", "nato", "europe", "poland", "germany", "france"],
-    "asia": ["china", "taiwan", "japan", "korea", "india", "philippines", "vietnam"],
-    "middle_east": ["iran", "israel", "syria", "iraq", "yemen"],
-    "global_military": ["war", "missile", "drone", "tank", "submarine", "fighter", "defense"]
+
+# =========================
+# CLASSIFICATION ENGINE
+# =========================
+CRITICAL = [
+    "war", "attack", "strike", "missile", "drone",
+    "invasion", "battle", "crash", "killed"
+]
+
+HIGH = [
+    "contract", "deal", "agreement", "delivery",
+    "tank", "jet", "fighter", "submarine", "ship",
+    "exercise", "drill", "summit"
+]
+
+MED = [
+    "visit", "meeting", "talks", "cooperation"
+]
+
+
+# =========================
+# REGION DETECTION (TVD STYLE)
+# =========================
+REGIONS = {
+    "NATO/EUROPE": ["nato", "europe", "germany", "france", "poland", "uk"],
+    "UKRAINE FRONT": ["ukraine", "kyiv", "russia"],
+    "ASIA-PACIFIC": ["china", "japan", "korea", "taiwan", "philippines", "india"],
+    "MIDDLE EAST": ["iran", "israel", "syria", "iraq"],
+    "GLOBAL": []
 }
-
-# 🔥 ключевые события
-HIGH_IMPACT = [
-    "war", "attack", "strike", "invasion", "mobilization",
-    "missile", "nuclear", "crash", "killed", "battle",
-    "exercise", "drill", "agreement", "summit", "visit"
-]
 
 
 def load_state():
@@ -55,49 +126,61 @@ def send_message(text):
     })
 
 
-# 🧠 определение театра
-def detect_theater(text):
+# =========================
+# ANALYTICS LAYER (TVD CORE)
+# =========================
+def get_region(text):
     t = text.lower()
-
-    for theater, keywords in THEATERS.items():
-        if any(k in t for k in keywords):
-            return theater
-
-    return "global"
+    for region, keys in REGIONS.items():
+        if any(k in t for k in keys):
+            return region
+    return "GLOBAL"
 
 
-# 🔥 важность
-def get_priority(text):
+def get_level(text):
     t = text.lower()
-    return 3 if any(k in t for k in HIGH_IMPACT) else 2
+    if any(k in t for k in CRITICAL):
+        return "CRITICAL"
+    if any(k in t for k in HIGH):
+        return "HIGH"
+    if any(k in t for k in MED):
+        return "MEDIUM"
+    return "LOW"
 
 
-# 🧹 очистка заголовка
-def clean_title(title):
-    title = re.sub(r"\s-\s.*$", "", title)
-    title = re.sub(r"\s+", " ", title).strip()
-    return title[:160]
+def clean(text):
+    text = re.sub(r"\s+", " ", text)
+    return text[:180]
 
 
-# 📰 новости
+# =========================
+# NEWS AGGREGATION
+# =========================
 def get_news():
-    news = []
+    items = []
 
     for url in RSS_FEEDS:
-        feed = feedparser.parse(url)
+        try:
+            feed = feedparser.parse(url)
 
-        for entry in feed.entries[:5]:
-            news.append({
-                "title": entry.title,
-                "link": entry.link
-            })
+            for e in feed.entries[:5]:
+                items.append({
+                    "title": e.title,
+                    "link": e.link
+                })
 
-    return news
+        except:
+            continue
+
+    return items
 
 
+# =========================
+# MAIN ENGINE
+# =========================
 def main():
     state = load_state()
-    seen = state.get("seen", [])
+    seen = state["seen"]
 
     news = get_news()
 
@@ -106,33 +189,36 @@ def main():
         if item["link"] in seen:
             continue
 
-        text = item["title"].lower()
+        title = item["title"]
+
+        region = get_region(title)
+        level = get_level(title)
 
         # фильтр мусора
-        if len(text) < 30:
+        if level == "LOW":
             continue
 
-        theater = detect_theater(text)
-        priority = get_priority(text)
+        summary = clean(title)
 
-        # OSINT формат
-        summary = clean_title(item["title"])
+        emoji = {
+            "CRITICAL": "🔴",
+            "HIGH": "🟠",
+            "MEDIUM": "🟡"
+        }.get(level, "⚪")
 
-        stamp = "🔥" * priority
+        message = f"""📡 TVD OSINT REPORT [{region}] [{level}]
 
-        message = f"""📡 OSINT UPDATE [{theater.upper()}]
+{emoji} {summary}
 
-{stamp} {summary}
-
-🔗 Source: {item['link']}"""
+🔗 {item['link']}"""
 
         send_message(message)
 
-        print("Sent:", summary)
+        print("SENT:", summary)
 
         seen.append(item["link"])
 
-    state["seen"] = seen[-300:]
+    state["seen"] = seen[-500:]
     save_state(state)
 
 
