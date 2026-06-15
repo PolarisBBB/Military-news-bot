@@ -3,6 +3,7 @@ import requests
 import feedparser
 import json
 import re
+from datetime import datetime
 
 TOKEN = os.getenv("BOT_TOKEN")
 CHAT_ID = os.getenv("CHAT_ID")
@@ -16,24 +17,19 @@ RSS_FEEDS = [
     "https://feeds.skynews.com/feeds/rss/world.xml"
 ]
 
-# 🎯 ключевые военные/политические темы
-KEYWORDS_HIGH = [
-    "war", "attack", "missile", "airstrike", "battle",
-    "invasion", "drone", "tank", "fighter", "submarine",
-    "warship", "nuclear", "mobilization", "defense"
-]
+# 🌍 театры
+THEATERS = {
+    "europe": ["russia", "ukraine", "nato", "europe", "poland", "germany", "france"],
+    "asia": ["china", "taiwan", "japan", "korea", "india", "philippines", "vietnam"],
+    "middle_east": ["iran", "israel", "syria", "iraq", "yemen"],
+    "global_military": ["war", "missile", "drone", "tank", "submarine", "fighter", "defense"]
+}
 
-KEYWORDS_MED = [
-    "agreement", "deal", "summit", "meeting", "visit",
-    "exercise", "drill", "contract", "delivery", "aid",
-    "sanctions", "cooperation"
-]
-
-COUNTRIES = [
-    "USA", "United States", "Ukraine", "Russia", "NATO",
-    "China", "Taiwan", "Japan", "South Korea", "North Korea",
-    "India", "Iran", "Australia", "Vietnam", "Philippines",
-    "Azerbaijan"
+# 🔥 ключевые события
+HIGH_IMPACT = [
+    "war", "attack", "strike", "invasion", "mobilization",
+    "missile", "nuclear", "crash", "killed", "battle",
+    "exercise", "drill", "agreement", "summit", "visit"
 ]
 
 
@@ -59,39 +55,32 @@ def send_message(text):
     })
 
 
-# 🧠 определяем важность
+# 🧠 определение театра
+def detect_theater(text):
+    t = text.lower()
+
+    for theater, keywords in THEATERS.items():
+        if any(k in t for k in keywords):
+            return theater
+
+    return "global"
+
+
+# 🔥 важность
 def get_priority(text):
     t = text.lower()
-
-    if any(k in t for k in KEYWORDS_HIGH):
-        return 3  # 🔥🔥🔥
-    elif any(k in t for k in KEYWORDS_MED):
-        return 2  # 🔥🔥
-    else:
-        return 1  # 🔥
+    return 3 if any(k in t for k in HIGH_IMPACT) else 2
 
 
-# 🎯 фильтр интереса
-def is_interesting(text):
-    t = text.lower()
-    return any(k.lower() in t for k in KEYWORDS_HIGH + KEYWORDS_MED + COUNTRIES)
-
-
-# ✂️ умное сокращение (как OSINT-канал)
-def smart_summary(title):
-    title = re.sub(r"\s+", " ", title).strip()
-
-    # убираем лишние хвосты
+# 🧹 очистка заголовка
+def clean_title(title):
     title = re.sub(r"\s-\s.*$", "", title)
-
-    if len(title) > 160:
-        title = title[:160] + "..."
-
-    return title
+    title = re.sub(r"\s+", " ", title).strip()
+    return title[:160]
 
 
 # 📰 новости
-def get_all_news():
+def get_news():
     news = []
 
     for url in RSS_FEEDS:
@@ -110,29 +99,35 @@ def main():
     state = load_state()
     seen = state.get("seen", [])
 
-    news = get_all_news()
+    news = get_news()
 
     for item in news:
 
         if item["link"] in seen:
             continue
 
-        text = item["title"]
+        text = item["title"].lower()
 
-        if not is_interesting(text):
+        # фильтр мусора
+        if len(text) < 30:
             continue
 
+        theater = detect_theater(text)
         priority = get_priority(text)
 
-        summary = smart_summary(text)
+        # OSINT формат
+        summary = clean_title(item["title"])
 
-        prefix = "🔥" * priority
+        stamp = "🔥" * priority
 
-        message = f"""{prefix} {summary}
+        message = f"""📡 OSINT UPDATE [{theater.upper()}]
 
-🔗 {item['link']}"""
+{stamp} {summary}
+
+🔗 Source: {item['link']}"""
 
         send_message(message)
+
         print("Sent:", summary)
 
         seen.append(item["link"])
