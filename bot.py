@@ -10,10 +10,11 @@ STATE_FILE = "state.json"
 
 # 📡 Несколько источников новостей
 RSS_FEEDS = [
-    "https://rss.nytimes.com/services/xml/rss/nyt/World.xml",
     "https://feeds.bbci.co.uk/news/world/rss.xml",
+    "https://rss.nytimes.com/services/xml/rss/nyt/World.xml",
     "https://www.aljazeera.com/xml/rss/all.xml",
-    "https://www.reutersagency.com/feed/?best-topics=world&post_type=best"
+    "https://feeds.skynews.com/feeds/rss/world.xml"
+]
 ]
 
 
@@ -43,6 +44,23 @@ def get_all_news():
     all_news = []
 
     for url in RSS_FEEDS:
+        print("Checking:", url)
+
+        feed = feedparser.parse(url)
+
+        print("Entries:", len(feed.entries))
+
+        for entry in feed.entries[:3]:
+            print("TITLE:", entry.title)
+
+            all_news.append({
+                "title": entry.title,
+                "link": entry.link
+            })
+
+    return all_news
+
+    for url in RSS_FEEDS:
         feed = feedparser.parse(url)
 
         for entry in feed.entries[:5]:
@@ -55,8 +73,7 @@ def get_all_news():
 
 
 def main():
-    state = load_state()
-    seen = state.get("seen", [])
+    seen = []
 
     news = get_all_news()
 
