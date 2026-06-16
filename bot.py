@@ -106,11 +106,28 @@ OFFICIAL_SOURCES = {
 # =========================
 ALLOW = [
     "military", "army", "navy", "air force",
-    "tank", "jet", "fighter", "bomber",
-    "missile", "drone", "submarine",
-    "defense", "defence", "weapon",
-    "contract", "deal", "agreement",
-    "exercise", "drill", "deployment"
+    "contract procurement", "award", "framework agreement",
+    "agreement signed", "memorandum", "MoU", "letter of intent",
+    "deal contractor", "tender", "purchase", "acquisition order",
+    "ordered", "exercise", "drill", "deployment",
+    "delivery", "deliveries", "delivered", "transfer",
+    "handed over", "received", "supplied", "supply", "shipment",
+    "consignment", "aid package", "military assistance",
+    "tank", "MBT", "IFV", "APC", "howitzer", "artillery", "rocket", "missile",
+    "air defence", "SAM", "fighter", "jet", "helicopter", "drone", "UAV", "UCAV",
+    "warship", "frigate", "destroyer", "corvette", "carrier", "submarine",
+    "torpedo", "radar", "munition", "loitering munition", "exercise",
+    "drill", "joint exercise", "joint drills", "live fire", "training",
+    "combat training", "maneuver", "deployment", "rotation", "president",
+    "prime minister", "minister of defence", "defence minister",
+    "foreign minister", "secretary of defense",
+    "summit", "meeting", "visit", "bilateral talks", "strategic dialogue",
+    "appointed", "appointment", "takes command", "new commander",
+    "chief of staff", "commander", "promotion", "dismissed", "replaced",
+    "launched", "commissioned", "keel laid", "christened", "sea trials",
+    "delivery ceremony", "commissioning ceremony", "rollout",
+    "first flight", "accepted", "delivered", "aircraft crash",
+    "helicopter crash", "satellite", "launch vehicle", "military satellite", "ISR satellite"
 ]
 
 BLOCK = [
